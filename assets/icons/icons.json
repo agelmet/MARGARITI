@@ -1,0 +1,12 @@
+{
+ "source": {
+  "kind": "file",
+  "ref": "../src/assets/icons/logo-icon.svg"
+ },
+ "source_md5": "19d1c7f06895d839f7ba8dcd7642a636",
+ "version": "246b6eda",
+ "tile": null,
+ "crop": null,
+ "header": null,
+ "made": "2026-11-25"
+}
