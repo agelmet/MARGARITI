@@ -706,3 +706,4 @@ kbd{font:700 12px/1 var(--disp);padding:3px 7px;border-radius:6px;border:1px sol
 .glance a{color:#fff}
 .glance .btn{background:var(--sun);color:var(--ink)}
 @media (max-width:900px){.faq-g{grid-template-columns:1fr}.glance{position:static}}
+.hero-c h1.h1-ey{max-width:none;font-size:12.5px;line-height:1.4;letter-spacing:.11em}.potd-more{margin-top:auto}
