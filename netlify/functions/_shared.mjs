@@ -55,7 +55,7 @@ const P = {
   fb: '<path d="M15 3h-2.5A4.5 4.5 0 0 0 8 7.5V10H5v4h3v7h4v-7h3l1-4h-4V7.5a1 1 0 0 1 1-1h3z"/>', ig: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6"/>',
   tw: '<path d="M4 4l16 16M20 4 4 20"/>', yt: '<rect x="2" y="5" width="20" height="14" rx="4"/><path d="m10 9 5 3-5 3z"/>', li: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7"/>',
   tt: '<path d="M14 3v11a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 3c.5 2.5 2.5 4.5 5 4.5"/>', teams: '<rect x="3" y="6" width="12" height="12" rx="2"/><path d="M7 9h4M9 9v6"/><circle cx="18.5" cy="7.5" r="2"/><path d="M16 11h4.5v4a2.5 2.5 0 0 1-4.5 1.5"/>',
-  pin: '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>', home: '<path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10"/>',
+  check: '<path d="m5 12 5 5 9-10"/>', pin: '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>', home: '<path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10"/>',
 };
 export const icon = (n, c = "") => `<svg class="i ${c}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${P[n] || ""}</svg>`;
 
@@ -74,6 +74,8 @@ function potd(state) {
 }
 const filesCount = (state) => visible(state).reduce((a, p) => a + (p.files || []).length, 0);
 const thumbOf = (p) => (p.files || []).find((f) => f.th);
+/* μικρή εικόνα κάρτας: οι 320px εκδοχές μένουν μέσα στο site (γρήγορες), όσες ανέβηκαν από τον πίνακα έρχονται όπως είναι */
+export const smallTh = (Ln, th) => /^t\//.test(th.th) ? Ln.asset("assets/th/" + th.th.slice(2)) : Ln.file(th.th);
 const TYPE_ICON = { panellinies: "cap", diagonismata: "clock", askiseis: "spark", methodologia: "star", erotiseis: "chat", theoria: "book", diagrammata: "eye", arthra: "spark" };
 
 /* ---------- κάρτες ---------- */
@@ -85,7 +87,8 @@ function chips(state, p) {
 export function postCard(state, ctx, p, opt = {}) {
   const Ln = links(ctx); const th = thumbOf(p); const t = T(state, p.type); const col = S(state, (p.subj || [])[0]).c;
   const n = (p.files || []).length;
-  const media = th ? `<span class="pc-th"><img src="${esc(Ln.file(th.th))}" alt="" width="${th.tw || 480}" height="${th.tht || 680}" loading="lazy" decoding="async"></span>`
+  const land = th && (th.tw || 480) > (th.tht || 680);
+  const media = th ? `<span class="pc-th${land ? " pc-th--land" : ""}"><img src="${esc(smallTh(Ln, th))}" alt="" width="${th.tw || 480}" height="${th.tht || 680}" loading="${opt.eager ? "eager" : "lazy"}" decoding="async"></span>`
     : `<span class="pc-th pc-th--ph" style="--c:${col}">${icon(p.lock ? "lock" : TYPE_ICON[p.type] || "file")}<b>${esc(t.s)}</b></span>`;
   const meta = p.lock ? `<span class="pc-lock">${icon("lock")}Με κωδικό</span>` : n ? `<span>${icon("file")}${n > 1 ? n + " αρχεία" : (p.files[0].n ? p.files[0].n + " σελ." : "PDF")}</span>` : "";
   return `<article class="pc${opt.big ? " pc--big" : ""}${p.lock ? " is-locked" : ""}" data-id="${esc(p.id)}" style="--c:${col}">
@@ -94,13 +97,16 @@ export function postCard(state, ctx, p, opt = {}) {
 }
 function coverHtml(b, ctx, cls = "") {
   const Ln = links(ctx);
-  if (b.cover && b.cover.u) return `<img class="bk-img ${cls}" src="${esc(Ln.asset(b.cover.u))}" alt="Εξώφυλλο: ${esc(b.title)}" width="${b.cover.w || 600}" height="${b.cover.h || 840}" loading="lazy" decoding="async">`;
+  if (b.cover && b.cover.u) {
+    const full = Ln.asset(b.cover.u), sm = /^assets\/img\/vivlio-.+\.webp$/.test(b.cover.u) && !cls.includes("fl-cover") ? Ln.asset(b.cover.u.replace(/\.webp$/, "-sm.webp")) : "";
+    return `<img class="bk-img ${cls}" src="${esc(sm || full)}"${sm ? ` srcset="${esc(sm)} ${Math.round((b.cover.w || 600) * 440 / (b.cover.h || 840))}w, ${esc(full)} ${b.cover.w || 600}w" sizes="(max-width:640px) 40vw, 230px"` : ""} alt="Εξώφυλλο: ${esc(b.title)}" width="${b.cover.w || 600}" height="${b.cover.h || 840}" loading="lazy" decoding="async">`;
+  }
   return `<span class="bk-gen ${cls}" style="--c1:${esc(b.c1 || "#2fae74")};--c2:${esc(b.c2 || "#1f7a52")}"><small>Νικολέττα Μαργαρίτη</small><b>${esc(b.title)}</b><em>${esc(b.grade || "")}</em><i class="bk-dna" aria-hidden="true"></i></span>`;
 }
 export function bookCard(state, ctx, b, i = 0) {
   const Ln = links(ctx); const col = ["coral", "sun", "leaf", "blue", "violet", "teal"][i % 6];
   const st = b.lock ? (b.lock.pending ? "Με κωδικό" : "Με κωδικό") : (b.files && b.files.length) ? "Ελεύθερο · " + b.files.length + " αρχεία" : b.sample ? "Δείγμα σελίδων" : "Στα βιβλιοπωλεία";
-  return `<article class="bk bk--${col}"><a href="${Ln.book(b)}" class="bk-a"><span class="bk-stage"><span class="bk-cover">${coverHtml(b, ctx)}</span></span>
+  return `<article class="bk bk--${col}"><a href="${Ln.book(b)}" class="bk-a"><span class="bk-stage"><span class="bk-cover" style="aspect-ratio:${b.cover && b.cover.u ? (b.cover.w || 7) + "/" + (b.cover.h || 10) : "7/10"}">${coverHtml(b, ctx)}</span></span>
 ${b.isNew ? '<span class="bk-new">Νέα κυκλοφορία</span>' : ""}<h3 class="bk-t">${esc(b.title)}</h3><span class="bk-m">${esc([b.grade, b.publisher ? "Εκδ. " + b.publisher : ""].filter(Boolean).join(" · "))}</span>
 <span class="bk-s${b.lock ? " is-lock" : ""}">${b.lock ? icon("lock") : "<i></i>"}${esc(st)}</span></a></article>`;
 }
@@ -133,7 +139,7 @@ function megaBooks(state, ctx) {
 }
 export const orderedBooks = (state) => { const o = state.settings.bookOrder || []; return state.books.filter((b) => !b.hidden).slice().sort((a, b) => (o.indexOf(a.id) + 1 || 999) - (o.indexOf(b.id) + 1 || 999)); };
 
-const logo = (ctx) => `<a class="logo" href="${ctx.base}" aria-label="Νίκη Μαργαρίτη, αρχική σελίδα"><span class="logo-m" aria-hidden="true"><i>A</i><i>T</i><i>G</i><i>C</i></span><span class="logo-t"><b>Νίκη Μαργαρίτη</b><small>Deep Learning · Βιολογία & Χημεία</small></span></a>`;
+const logo = (ctx) => `<a class="logo" href="${ctx.base}"><span class="logo-m" aria-hidden="true"><i>A</i><i>T</i><i>G</i><i>C</i></span><span class="logo-t"><b>Νίκη Μαργαρίτη</b><small>Deep Learning · Βιολογία & Χημεία</small></span></a>`;
 
 export function header(state, ctx, cur) {
   const Ln = links(ctx);
@@ -181,9 +187,9 @@ export function footer(state, ctx) {
 
 function bubbles(state, ctx) {
   const Ln = links(ctx); const pc = state.settings.podcast || {};
-  return `<div class="bub" aria-label="Βοήθεια">
-<button class="bub-b bub-pod" type="button" data-pod aria-expanded="false" aria-controls="pod"><span class="bub-ic">${icon("head")}</span><span class="bub-l">Άκου τον οδηγό</span><span class="bub-eq" aria-hidden="true"><i></i><i></i><i></i></span></button>
-<button class="bub-b bub-celly" type="button" data-celly><span class="bub-l">Έχεις απορίες;</span><img src="${esc(Ln.asset(state.photos.cellyAvatar.u))}" alt="" width="46" height="46"></button></div>
+  return `<div class="bub" role="group" aria-label="Βοήθεια">
+<button class="bub-b bub-pod" type="button" data-pod aria-expanded="false" aria-controls="pod" aria-label="Άκου τον οδηγό του site"><span class="bub-ic">${icon("head")}</span><span class="bub-l">Άκου τον οδηγό</span><span class="bub-eq" aria-hidden="true"><i></i><i></i><i></i></span></button>
+<button class="bub-b bub-celly" type="button" data-celly aria-label="Έχεις απορίες; Ρώτα την Celly"><span class="bub-l">Έχεις απορίες;</span><img src="${esc(Ln.asset(state.photos.cellyAvatar.u))}" alt="" width="46" height="46"></button></div>
 <section class="pod" id="pod" hidden aria-label="Ηχητικός οδηγός"><div class="pod-h"><span class="pod-ic">${icon("head")}</span><div><b>${esc(pc.title || "Ο ηχητικός οδηγός του site")}</b><small>με τη φωνή της ${esc(pc.by || "Νίκης Μαργαρίτη")}</small></div><button type="button" class="pod-x" aria-label="Κλείσιμο">${icon("x")}</button></div>
 ${pc.url ? `<audio preload="none" src="${esc(Ln.file(pc.url))}"></audio>` : ""}
 <div class="pod-p"><button type="button" class="pod-play" aria-label="Αναπαραγωγή"${pc.url ? "" : " disabled"}>${icon("play", "i-play")}${icon("pause", "i-pause")}</button><div class="pod-bar"><input type="range" min="0" max="1000" value="0" aria-label="Θέση"${pc.url ? "" : " disabled"}><span class="pod-time"><span data-t>0:00</span> / <span data-d>${pc.url ? "–:––" : "0:00"}</span></span></div><button type="button" class="pod-rate" aria-label="Ταχύτητα">1×</button></div>
@@ -191,7 +197,7 @@ ${(pc.chapters || []).length ? `<ol class="pod-ch">${pc.chapters.map((c) => `<li
 ${pc.url ? "" : `<p class="pod-empty">Ο ηχητικός οδηγός ανεβαίνει σε λίγο: μια σύντομη ξενάγηση με τη φωνή της Νίκης για το πού θα βρεις κάθε υλικό.</p>`}</section>
 <aside class="drawer" id="drawer" aria-label="Celly" hidden><div class="drawer-h"><img src="${esc(Ln.asset(state.photos.cellyAvatar.u))}" alt="" width="40" height="40"><div><b>Celly</b><small>Η βοηθός τεχνητής νοημοσύνης της Νίκης</small></div><a href="${esc(state.settings.celly)}" target="_blank" rel="noopener" class="drawer-new">Νέα καρτέλα ↗</a><button type="button" class="drawer-x" aria-label="Κλείσιμο Celly">${icon("x")}</button></div><div class="drawer-b"><iframe title="Celly" data-src="${esc(state.settings.celly)}" allow="microphone; clipboard-write"></iframe></div></aside>
 <div class="sx" id="sx" hidden role="dialog" aria-modal="true" aria-label="Αναζήτηση"><div class="sx-box"><div class="sx-in">${icon("search")}<input type="search" placeholder="Τι ψάχνεις; π.χ. θέματα πανελληνίων 2025, ανατομία, χημεία γυμνασίου…" autocomplete="off" spellcheck="false" aria-label="Αναζήτηση"><button type="button" class="sx-x" aria-label="Κλείσιμο">Esc</button></div><div class="sx-r" aria-live="polite"></div></div></div>
-<div class="pv" id="pv" hidden role="dialog" aria-modal="true" aria-label="Προβολή αρχείου"><div class="pv-h"><b class="pv-t"></b><a class="pv-dl btn btn--sun btn--sm" download>${icon("dl")} Λήψη</a><a class="pv-new" target="_blank" rel="noopener">Νέα καρτέλα ↗</a><button type="button" class="pv-x" aria-label="Κλείσιμο">${icon("x")}</button></div><div class="pv-b"></div></div>`;
+<div class="pv" id="pv" hidden role="dialog" aria-modal="true" aria-label="Προβολή αρχείου"><div class="pv-h"><b class="pv-t"></b><a class="pv-dl btn btn--sun btn--sm" href="#pv" download>${icon("dl")} Λήψη</a><a class="pv-new" href="#pv" target="_blank" rel="noopener">Νέα καρτέλα ↗</a><button type="button" class="pv-x" aria-label="Κλείσιμο">${icon("x")}</button></div><div class="pv-b"></div></div>`;
 }
 
 /* ---------- σελίδες ---------- */
@@ -208,10 +214,10 @@ function listing(state, ctx, opts) {
   const all = visible(state); const f = opts.f || {};
   let items = all.filter((p) => (!f.l || (p.lvl || []).includes(f.l)) && (!f.m || (p.subj || []).includes(f.m)) && (!f.e || p.type === f.e));
   const total = items.length;
-  const per = 48; const shown = items.slice(0, per);
+  const per = 24; const shown = items.slice(0, per);
   const quick = state.types.map((t) => { const n = items.filter((p) => p.type === t.k).length; return n ? `<button type="button" class="qf" data-e="${t.k}"${f.e === t.k ? ' aria-pressed="true"' : ""}>${esc(t.s)} <small>${n}</small></button>` : ""; }).join("");
   return `<div class="lst" data-list data-f='${esc(JSON.stringify(f))}'>${filterBar(state, ctx, f)}<div class="qfs" role="group" aria-label="Γρήγορο φίλτρο">${quick}</div>
-<p class="lst-n"><b data-n>${total}</b> αναρτήσεις</p><div class="grid" data-grid>${shown.map((p) => postCard(state, ctx, p)).join("")}</div>
+<h2 class="sr">Αναρτήσεις</h2><p class="lst-n"><b data-n>${total}</b> αναρτήσεις</p><div class="grid" data-grid>${shown.map((p, i) => postCard(state, ctx, p, { eager: i < 4 })).join("")}</div>
 ${total > per ? `<div class="more"><button type="button" class="btn btn--ink" data-more>Δείξε κι άλλα</button></div>` : ""}<p class="lst-empty" hidden>Δεν βρέθηκε τίποτα με αυτά τα φίλτρα. Δοκίμασε άλλη λέξη ή <a href="${links(ctx).yliko()}">καθάρισε τα φίλτρα</a>.</p></div>`;
 }
 function pageHero(eyebrow, title, lead, extra = "") {
@@ -230,14 +236,14 @@ function homePage(state, ctx) {
   const years = [...new Set(all.filter((p) => p.type === "panellinies" && p.year).map((p) => p.year))].sort((a, b) => b - a);
   const latest = all.slice(0, 8).map((p) => postCard(state, ctx, p)).join("");
   return `<section class="hero"><div class="wrap hero-g">
-<aside class="hc hc--potd" aria-label="Post ημέρας"><p class="hc-h"><span class="pulse"></span>Post ημέρας</p>${dCard}<div class="potd-more"><p>Επίσης πρόσφατα</p>${all.filter((p) => p !== d).slice(0, 2).map((p) => `<a href="${Ln.post(p)}"><b>${esc(p.title)}</b><small>${shortDate(p.date)} · ${esc(T(state, p.type).s)}</small></a>`).join("")}</div></aside>
-<div class="hero-c"><h1 class="eyebrow h1-ey">Νίκη Μαργαρίτη · καθηγήτρια Βιολογίας & Χημείας, συγγραφέας</h1><p class="h1-big">Deep Learning στη <span class="hl hl--leaf">Βιολογία</span> και τη <span class="hl hl--blue">Χημεία</span></p>
-<p class="lead">Δωρεάν διαγωνίσματα, θέματα Πανελληνίων λυμένα, ασκήσεις και θεωρία για Γυμνάσιο, Λύκειο και ΕΠΑΛ. Όλα σε ένα μέρος, ταξινομημένα, με μια αναζήτηση.</p>
-<form class="hs" action="${Ln.search()}" method="get" role="search" data-hs><label class="sr" for="hs-q">Αναζήτηση υλικού</label>${icon("search")}<input id="hs-q" name="q" type="search" placeholder="Γράψε ό,τι ψάχνεις… π.χ. «θεματα πανελληνιων»" autocomplete="off" spellcheck="false"><button class="btn btn--ink" type="submit">Βρες το</button><div class="hs-r" hidden></div></form>
-<div class="sugg">${sugg.map((s) => `<a href="${Ln.search(s)}">${esc(s)}</a>`).join("")}</div>
-<div class="stats"><span class="st st--coral"><b data-count="${all.length}">${all.length}</b> αναρτήσεις</span><span class="st st--sun"><b data-count="${nFiles}">${nFiles}</b> αρχεία PDF</span><span class="st st--leaf"><b>${books.length}</b> βιβλία</span></div></div>
-<aside class="hc hc--books" aria-label="Τα βιβλία μου"><p class="hc-h">${icon("book")}Τα βιβλία μου</p><div class="rbs" data-rotate>${shelf}</div><div class="rb-dots" aria-hidden="true">${rot.map((_, i) => `<i${i ? "" : ' class="is-on"'}></i>`).join("")}</div><a class="hc-all" href="${Ln.books}">Όλα τα βιβλία ${icon("arrow")}</a></aside>
+${d && dCard ? `<aside class="hc hc--potd" aria-label="Post ημέρας"><p class="hc-h"><span class="pulse"></span>Post ημέρας</p>${dCard}</aside>` : `<span></span>`}
+<div class="hero-c"><h1 class="eyebrow h1-ey">Νίκη Μαργαρίτη · καθηγήτρια Βιολογίας & Χημείας</h1><p class="h1-big">Deep Learning στη <span class="hl hl--leaf">Βιολογία</span> και τη <span class="hl hl--blue">Χημεία</span></p>
+<p class="lead">Θέματα Πανελληνίων, διαγωνίσματα, ασκήσεις και θεωρία, όλα σε ένα μέρος.</p>
+<form class="hs" action="${Ln.search()}" method="get" role="search" data-hs><label class="sr" for="hs-q">Αναζήτηση υλικού</label>${icon("search")}<input id="hs-q" name="q" type="search" placeholder="Τι ψάχνεις; π.χ. «θεματα πανελληνιων»" autocomplete="off" spellcheck="false"><button class="btn btn--ink" type="submit">Βρες το</button><div class="hs-r" hidden></div></form>
+<div class="sugg">${sugg.slice(0, 3).map((s) => `<a href="${Ln.search(s)}">${esc(s)}</a>`).join("")}</div></div>
+<aside class="hc hc--books" aria-label="Τα βιβλία μου"><p class="hc-h">${icon("book")}Τα βιβλία μου</p><div class="rbs" data-rotate>${shelf}</div><div class="rb-dots" aria-hidden="true">${rot.map((_, i) => `<i${i ? "" : ' class="is-on"'}></i>`).join("")}</div></aside>
 </div></section>
+<div class="trust"><div class="wrap trust-in"><span>${icon("file")}<b>${all.length}</b> αναρτήσεις</span><span>${icon("dl")}<b>${nFiles}</b> αρχεία PDF</span><span>${icon("cap")}Θέματα Πανελληνίων <b>2000–${years[0] || ""}</b></span><span>${icon("book")}<b>${books.length}</b> βιβλία</span><span>${icon("spark")}Δωρεάν, χωρίς εγγραφή</span></div></div>
 <div class="dna" aria-hidden="true"></div>
 <section class="sec"><div class="wrap"><div class="sec-h"><div><p class="eyebrow">Βρες γρήγορα</p><h2>Σε ποια τάξη είσαι;</h2></div><a class="lnk" href="${Ln.yliko()}">Όλο το υλικό ${icon("arrow")}</a></div><div class="lts">${levelTiles}</div>
 <div class="tys tys--rail">${state.types.map((t) => `<a href="${Ln.type(t.k)}">${icon(TYPE_ICON[t.k] || "file")}${esc(t.t)}<small>${all.filter((p) => p.type === t.k).length}</small></a>`).join("")}</div></div></section>
@@ -247,11 +253,13 @@ ${years.length ? `<section class="sec sec--ink"><div class="wrap"><div class="se
 <section class="sec" id="vivlia"><div class="wrap"><div class="sec-h"><div><p class="eyebrow">Τα βιβλία μου</p><h2>Διάλεξε ένα και ξεφύλλισέ το</h2></div><p class="sec-p">Κάθε βιβλίο ανοίγει στη σελίδα του: εξώφυλλο, περιεχόμενα, δείγματα σελίδων και τα αρχεία του, με τον κωδικό σου όπου χρειάζεται.</p></div>
 <div class="bks">${books.slice(0, 5).map((b, i) => bookCard(state, ctx, b, i)).join("")}</div><div class="more"><a class="btn btn--ink btn--count" href="${Ln.books}">Δες όλα τα βιβλία <span>${books.length}</span></a></div></div></section>
 ${state.quiz && state.quiz.questions && state.quiz.questions.length ? `<section class="sec sec--ink qz" id="quiz"><div class="wrap qz-g"><div><p class="eyebrow eyebrow--sun">Κάθε μέρα καινούργιο</p><h2>Το quiz της ημέρας</h2><p class="lead">5 ερωτήσεις για την τάξη σου, κάθε μέρα διαφορετικές. Χωρίς εγγραφή: το σερί σου μένει σε αυτή τη συσκευή.</p><div class="qz-gr" role="group" aria-label="Τάξη">${(state.quiz.grades || []).map((g, i) => `<button type="button" data-g="${esc(g)}"${i ? "" : ' aria-pressed="true"'}>${esc(g)}</button>`).join("")}</div></div><div class="qz-card" data-quiz><p class="qz-start">Πάτα «Ξεκίνα» και απάντησε όσο πιο γρήγορα μπορείς.</p><button type="button" class="btn btn--sun" data-qz-go>Ξεκίνα το σημερινό</button></div></div></section>` : ""}
-<section class="sec sec--lilac"><div class="wrap cel"><div class="cel-t"><p class="eyebrow">Η βοηθός σου</p><h2>Διάβασε μαζί με την Celly</h2><p class="lead">Η Celly σε ακούει ή σε διαβάζει, στα ελληνικά και στα αγγλικά. Σου λύνει κάθε άσκηση με πλήρη αιτιολόγηση, σε καθοδηγεί βήμα βήμα και σε εξετάζει σαν διορθωτής.</p>
-<div class="btns"><button type="button" class="btn btn--ink" data-celly>Άνοιξε την Celly</button><button type="button" class="btn btn--line-ink" data-pod>${icon("head")} Άκου τον οδηγό του site</button></div></div><a class="cel-img" href="${Ln.page("celly")}"><img src="${esc(Ln.asset(state.photos.celly.u))}" alt="Η Celly, η βοηθός τεχνητής νοημοσύνης για Βιολογία, Χημεία, Ανατομία και Υγιεινή" width="${state.photos.celly.w}" height="${state.photos.celly.h}" loading="lazy"></a></div></section>
+<section class="sec"><div class="wrap"><div class="celx"><a class="celx-img" href="${Ln.page("celly")}" aria-label="Η Celly"><img src="${esc(Ln.asset(state.photos.celly.u))}" alt="Η Celly, η βοηθός τεχνητής νοημοσύνης για Βιολογία, Χημεία, Ανατομία και Υγιεινή" width="${state.photos.celly.w}" height="${state.photos.celly.h}" loading="lazy" decoding="async"></a>
+<div class="celx-t"><p class="eyebrow">Η βοηθός σου</p><h2>Διάβασε μαζί με την Celly</h2><p class="lead">Η βοηθός τεχνητής νοημοσύνης που έφτιαξα για τους μαθητές μου, για Βιολογία, Χημεία, Ανατομία και Υγιεινή.</p>
+<ul class="celx-l"><li>${icon("check")}Λύνει κάθε άσκηση με πλήρη αιτιολόγηση</li><li>${icon("check")}Σε καθοδηγεί βήμα βήμα στη θεωρία</li><li>${icon("check")}Σε εξετάζει σαν διορθωτής</li><li>${icon("check")}Σε ακούει ή σε διαβάζει, στα ελληνικά και στα αγγλικά</li></ul>
+<div class="btns"><button type="button" class="btn btn--ink" data-celly>Άνοιξε την Celly</button><button type="button" class="btn btn--line-ink" data-pod>${icon("head")} Άκου τον οδηγό του site</button></div></div></div></div></section>
 <section class="sec"><div class="wrap me"><img class="me-img" src="${esc(Ln.asset(state.photos.niki.u))}" alt="Η Νίκη Μαργαρίτη, βιοτεχνολόγος και καθηγήτρια Βιολογίας και Χημείας" width="${state.photos.niki.w}" height="${state.photos.niki.h}" loading="lazy">
 <div><p class="eyebrow">Ποια είμαι</p><h2>Νίκη Μαργαρίτη</h2><p class="lead">Βιοτεχνολόγος με μεταπτυχιακά στη Μοριακή Μικροβιολογία, τη Βιομηχανική Χημεία και τη Γενετική. Εκατοντάδες μαθητές της σπουδάζουν σήμερα σε ιατρικές, οδοντιατρικές, φαρμακευτικές και πολυτεχνικές σχολές, στην Ελλάδα και την Ευρώπη.</p><div class="btns"><a class="btn btn--ink" href="${Ln.page("niki")}">Το βιογραφικό μου</a><a class="btn btn--line-ink" href="${Ln.page("online-mathimata")}">Online μαθήματα</a></div></div></div></section>
-${feedbackBar(state, ctx)}`;
+${homeFaq(state, ctx)}${feedbackBar(state, ctx)}`;
 }
 
 export const HOME_FAQ = [
@@ -311,7 +319,7 @@ function bookPage(state, ctx, b) {
   const Ln = links(ctx);
   const files = (b.files || []).map((f, k) => fileCard(ctx, f, k)).join("");
   return `${crumbs(ctx, [["Τα βιβλία μου", Ln.books], [b.title]])}<section class="bp"><div class="wrap bp-g">
-<div class="bp-book" data-flip><div class="fl"><div class="fl-page fl-front">${coverHtml(b, ctx, "fl-cover")}</div><div class="fl-page fl-back">${b.back && b.back.u ? `<img src="${esc(Ln.asset(b.back.u))}" alt="Οπισθόφυλλο: ${esc(b.title)}" width="${b.back.w}" height="${b.back.h}" loading="lazy">` : `<div class="fl-toc"><p>Περιεχόμενα</p><ol>${(b.toc || []).map((t) => `<li>${esc(t)}</li>`).join("") || "<li>Θεωρία, ασκήσεις και διαγωνίσματα</li>"}</ol></div>`}</div></div>
+<div class="bp-book" data-flip><div class="fl" style="aspect-ratio:${b.cover && b.cover.u ? (b.cover.w || 7) + "/" + (b.cover.h || 10) : "7/10"}"><div class="fl-page fl-front">${coverHtml(b, ctx, "fl-cover")}</div><div class="fl-page fl-back">${b.back && b.back.u ? `<img src="${esc(Ln.asset(b.back.u))}" alt="Οπισθόφυλλο: ${esc(b.title)}" width="${b.back.w}" height="${b.back.h}" loading="lazy">` : `<div class="fl-toc"><p>Περιεχόμενα</p><ol>${(b.toc || []).map((t) => `<li>${esc(t)}</li>`).join("") || "<li>Θεωρία, ασκήσεις και διαγωνίσματα</li>"}</ol></div>`}</div></div>
 <button type="button" class="btn btn--line-ink btn--sm fl-btn" data-flip-btn>${b.back && b.back.u ? "Δες το οπισθόφυλλο" : "Δες τα περιεχόμενα"}</button></div>
 <div class="bp-t"><p class="eyebrow">${esc([b.grade, b.subj].filter(Boolean).join(" · "))}</p><h1>${esc(b.title)}</h1><p class="bp-meta">${esc(b.authors || "Νικολέττα Μαργαρίτη")}${b.publisher ? " · Εκδόσεις " + esc(b.publisher) : ""}${b.year ? " · " + esc(b.year) : ""}</p>
 ${b.summary ? md(b.summary) : ""}${(b.toc || []).length ? `<ul class="bp-toc">${b.toc.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
@@ -437,7 +445,7 @@ export function docHtml(state, ctx, r, opt = {}) {
 <script id="advon-draft-guard">(function(){var h=location.hostname;if(/drafts\\.advonmedia\\.com$|github\\.io$|netlify\\.app$/.test(h)){var m=document.createElement('meta');m.name='robots';m.content='noindex,nofollow';document.head.appendChild(m)}})();</script>
 ${canon ? `<link rel="canonical" href="${esc(canon)}">` : ""}<meta property="og:type" content="${r.key === "post" ? "article" : "website"}"><meta property="og:title" content="${esc(r.title)}"><meta property="og:description" content="${esc(r.desc)}"><meta property="og:locale" content="el_GR"><meta property="og:site_name" content="Νίκη Μαργαρίτη">
 <meta property="og:image" content="${esc(r.image && /^https?:/.test(r.image) ? r.image : origin + (r.image || Ln.asset("assets/img/og.jpg")))}">${canon ? `<meta property="og:url" content="${esc(canon)}">` : ""}<meta name="theme-color" content="#fbf6ea">
-<link rel="preload" href="${Ln.asset("assets/fonts/inter-tight-greek-800.woff2")}" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="${Ln.asset("assets/css/site.css")}?v=${v}">
+<link rel="preload" href="${Ln.asset("assets/fonts/inter-tight-greek-800-normal.woff2")}" as="font" type="font/woff2" crossorigin>${opt.css ? `<style>${opt.css.replace(/__BASE__/g, ctx.base)}</style>` : `<link rel="stylesheet" href="${Ln.asset("assets/css/site.css")}?v=${v}">`}
 <!-- advon-icons --><link rel="icon" href="${Ln.asset("favicon.ico")}?v=246b6eda" sizes="32x32"><link rel="icon" href="${Ln.asset("assets/icons/favicon.svg")}?v=246b6eda" type="image/svg+xml"><link rel="icon" href="${Ln.asset("assets/icons/favicon-96.png")}?v=246b6eda" type="image/png" sizes="96x96"><link rel="icon" href="${Ln.asset("assets/icons/favicon-48.png")}?v=246b6eda" type="image/png" sizes="48x48"><link rel="apple-touch-icon" href="${Ln.asset("assets/icons/apple-touch-icon.png")}?v=246b6eda"><link rel="manifest" href="${Ln.asset("site.webmanifest")}?v=246b6eda"><!-- /advon-icons -->
 <link rel="alternate" type="application/rss+xml" title="Νίκη Μαργαρίτη" href="${Ln.asset("rss.xml")}">
 <script type="application/ld+json">${schema(state, ctx, r).replace(/</g, "\\u003c")}</script>
